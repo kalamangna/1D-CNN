@@ -15,4 +15,4 @@ data/processed/
 # Model Artifacts
 # artifacts/model.keras is needed for deployment
 # but we can ignore plots if we want
-artifacts/*.png
+# artifacts/*.png
