@@ -4,7 +4,7 @@ import re
 
 def prepare_data():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    file_path = os.path.join(base_dir, 'data', 'raw', 'DATASET.xlsx')
+    file_path = os.path.join(base_dir, 'data', 'raw', 'DATASET2.xlsx')
     output_file = os.path.join(base_dir, 'data', 'processed', 'processed_dataset.csv')
     
     if not os.path.exists(file_path):
