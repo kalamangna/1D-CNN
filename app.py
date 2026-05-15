@@ -79,7 +79,15 @@ def predict():
             
             # Extract location
             raw_location = float(predictions[2][0][0])
-            location_km = max(0.0, min(5.0, raw_location))
+            
+            # Snap to nearest valid location from dataset
+            # Valid: 0.25, 1.25, 2.5, 3.75, 4.9 (km)
+            VALID_LOCATIONS = [0.25, 1.25, 2.5, 3.75, 4.9]
+            
+            if detection_verdict == "Fault":
+                location_km = min(VALID_LOCATIONS, key=lambda x: abs(x - raw_location))
+            else:
+                location_km = 0.0
             
             # --- Detect Fault Inception Time ---
             fault_time_s = "N/A"
