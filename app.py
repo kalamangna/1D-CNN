@@ -50,7 +50,9 @@ def predict():
 
         # Preprocessing
         try:
+            print(f"DEBUG: First row raw: {signals[0]}")
             signals_scaled = scaler.transform(signals)
+            print(f"DEBUG: First row scaled: {signals_scaled[0]}")
             input_data = signals_scaled.reshape(1, 200, 7)
         except Exception as e:
             print(f"Preprocessing error: {str(e)}")
@@ -83,10 +85,15 @@ def predict():
             fault_time_s = "N/A"
             if detection_verdict == "Fault":
                 for i in range(len(signals)):
-                    # Use absolute values for thresholding as signals are per-unit AC
-                    v_abs_min = np.min(np.abs(signals[i, 1:4]))
+                    # Thresholds adjusted based on dataset analysis:
+                    # Normal max I is ~0.4, Normal min V is near 0 at zero-crossings
+                    # but peak V is 1.0. A sag to 0.85 or spike to 0.5 is a good indicator.
+                    v_abs_max = np.max(np.abs(signals[i, 1:4]))
                     i_abs_max = np.max(np.abs(signals[i, 4:7]))
-                    if v_abs_min < 0.8 or i_abs_max > 1.2:
+                    
+                    # Detection logic: Voltage sag (peak lower than 0.85) 
+                    # OR Current spike (higher than 0.3)
+                    if v_abs_max < 0.85 or i_abs_max > 0.3:
                         fault_time_s = float(signals[i, 0])
                         break
 
