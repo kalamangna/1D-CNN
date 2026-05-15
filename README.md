@@ -2,7 +2,7 @@
 title: 1D-CNN Power System Fault Detector
 emoji: ⚡
 colorFrom: indigo
-colorTo: slate
+colorTo: blue
 sdk: docker
 pinned: false
 app_port: 7860
