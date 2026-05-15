@@ -1,0 +1,18 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.log
+
+# Data
+data/
+data/raw/
+data/processed/
+*.xlsx
+*.csv
+
+# Model Artifacts
+# artifacts/model.keras is needed for deployment
+# but we can ignore plots if we want
+artifacts/*.png

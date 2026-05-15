@@ -1,0 +1,1 @@
+{"accuracy": 0.9965, "classification_accuracy": 0.9931, "precision": 0.9872, "recall": 1.0, "f1_score": 0.9935, "location_rmse": 0.2632, "total_samples": 578, "cm": {"tn": 422, "fp": 2, "fn": 0, "tp": 154}}
