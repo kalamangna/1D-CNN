@@ -1,3 +1,13 @@
+---
+title: 1D-CNN Power System Fault Detector
+emoji: ⚡
+colorFrom: indigo
+colorTo: slate
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # 1D-CNN Power System Fault Detector - Backend
 
 This is the AI-driven backend for detecting and classifying faults in power transmission lines. It uses a 1D Convolutional Neural Network (1D-CNN) with a multi-task architecture to analyze 3-phase voltage and current signals.
