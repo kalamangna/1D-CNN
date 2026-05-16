@@ -1,3 +1,12 @@
+---
+title: 1D-CNN Fault Detection
+emoji: ⚡
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # 1D-CNN Power System Fault Detector
 
 An intelligent, end-to-end system for real-time detection, classification, and localization of faults in electrical transmission lines using Deep Learning.
