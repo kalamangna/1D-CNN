@@ -27,7 +27,9 @@ def build_fault_detection_model(input_shape: Tuple[int, int] = (200, 7), num_cla
     x = layers.Conv1D(filters=256, kernel_size=3, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
-    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.Flatten()(x)
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.3)(x)
     
     shared_features = x
 
@@ -51,7 +53,7 @@ def build_fault_detection_model(input_shape: Tuple[int, int] = (200, 7), num_cla
 
     # --- Compilation ---
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
         loss={
             'detection': 'binary_crossentropy',
             'classification': 'categorical_crossentropy',

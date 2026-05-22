@@ -14,28 +14,64 @@ from models.backbone import build_fault_detection_model
 from scripts.data_loader import process_and_split_data
 
 def plot_history(history, artifacts_dir):
-    """Plots training vs validation accuracy and loss for both heads."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    """Plots training vs validation metrics for all heads dynamically."""
+    keys = history.history.keys()
+    
+    # 1. Group keys by metric type
+    loss_keys = sorted([k for k in keys if 'loss' in k and not k.startswith('val_')])
+    acc_keys = sorted([k for k in keys if ('accuracy' in k or 'acc' in k) and not k.startswith('val_')])
+    rmse_keys = sorted([k for k in keys if 'rmse' in k and not k.startswith('val_')])
 
-    # Loss Plot
-    ax1.plot(history.history['loss'], label='Total Train Loss')
-    ax1.plot(history.history['val_loss'], label='Total Val Loss')
-    ax1.set_title('Model Loss')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Loss')
-    ax1.legend()
+    # 2. Determine plot layout
+    num_plots = 1 + (1 if acc_keys else 0) + (1 if rmse_keys else 0)
+    fig, axes = plt.subplots(1, num_plots, figsize=(6 * num_plots, 5))
+    if num_plots == 1:
+        axes = [axes]
+    
+    current_ax = 0
 
-    # Accuracy Plot (Classification head)
-    ax2.plot(history.history['classification_accuracy'], label='Class Train Acc')
-    ax2.plot(history.history['val_classification_accuracy'], label='Class Val Acc')
-    ax2.set_title('Classification Accuracy')
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Accuracy')
-    ax2.legend()
+    # 3. Plot Losses (All in one subplot)
+    for k in loss_keys:
+        label = k.replace('_', ' ').title()
+        axes[current_ax].plot(history.history[k], label=f'Train {label}')
+        if f'val_{k}' in history.history:
+            axes[current_ax].plot(history.history[f'val_{k}'], label=f'Val {label}', linestyle='--')
+    axes[current_ax].set_title('Model Losses')
+    axes[current_ax].set_xlabel('Epoch')
+    axes[current_ax].set_ylabel('Loss Value')
+    axes[current_ax].legend()
+    current_ax += 1
+
+    # 4. Plot Accuracies
+    if acc_keys:
+        for k in acc_keys:
+            label = k.replace('_', ' ').title()
+            axes[current_ax].plot(history.history[k], label=f'Train {label}')
+            if f'val_{k}' in history.history:
+                axes[current_ax].plot(history.history[f'val_{k}'], label=f'Val {label}', linestyle='--')
+        axes[current_ax].set_title('Accuracy Metrics')
+        axes[current_ax].set_xlabel('Epoch')
+        axes[current_ax].set_ylabel('Accuracy (0.0 - 1.0)')
+        axes[current_ax].set_ylim([-0.05, 1.05]) # Fix scale for clarity
+        axes[current_ax].legend()
+        current_ax += 1
+
+    # 5. Plot RMSE (Location)
+    if rmse_keys:
+        for k in rmse_keys:
+            label = k.replace('_', ' ').title()
+            axes[current_ax].plot(history.history[k], label=f'Train {label}')
+            if f'val_{k}' in history.history:
+                axes[current_ax].plot(history.history[f'val_{k}'], label=f'Val {label}', linestyle='--')
+        axes[current_ax].set_title('Regression Metrics (RMSE)')
+        axes[current_ax].set_xlabel('Epoch')
+        axes[current_ax].set_ylabel('RMSE (km)')
+        axes[current_ax].legend()
+        current_ax += 1
 
     plt.tight_layout()
     plt.savefig(os.path.join(artifacts_dir, 'training_curves.png'))
-    print(f"Training curves saved to {artifacts_dir}/training_curves.png")
+    print(f"Comprehensive training curves saved to {artifacts_dir}/training_curves.png")
     plt.close()
 
 def plot_confusion_matrix(y_true, y_pred, classes, artifacts_dir):
@@ -57,9 +93,13 @@ def main():
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DATASET_PATH = os.path.join(BASE_DIR, 'data', 'processed', 'processed_dataset.csv')
     ARTIFACTS_DIR = os.path.join(BASE_DIR, 'artifacts')
+    FRONTEND_PUBLIC_DIR = os.path.join(os.path.dirname(BASE_DIR), 'frontend', 'public', 'results')
     
     if not os.path.exists(ARTIFACTS_DIR):
         os.makedirs(ARTIFACTS_DIR)
+    
+    if not os.path.exists(FRONTEND_PUBLIC_DIR):
+        os.makedirs(FRONTEND_PUBLIC_DIR)
 
     FEATURE_COLS = ['t (s)', 'V(a) p.u', 'V(b) p.u', 'V(c) p.u', 'I(a) p.u', 'I(b) p.u', 'I(c) p.u']
     DETECTION_COL = 'Detection'
@@ -68,7 +108,7 @@ def main():
     WINDOW_SIZE = 200
     STRIDE = 50
     BATCH_SIZE = 32
-    EPOCHS = 30
+    EPOCHS = 50
 
     # 1. Load and Process Data
     print("Step 1: Processing and splitting data...")
@@ -97,26 +137,46 @@ def main():
     
     # 3. Training
     print("\nStep 3: Starting training...")
+
+    # Calculate sample weights for 'detection' head to handle imbalance
+    from sklearn.utils.class_weight import compute_sample_weight
+    y_train_det = y_train['detection'].flatten()
+    sw_detection = compute_sample_weight('balanced', y_train_det)
+    
+    # Convert dictionaries to lists matching the model's output order: 
+    # [detection, classification, location]
+    y_train_list = [y_train['detection'], y_train['classification'], y_train['location']]
+    y_val_list = [y_val['detection'], y_val['classification'], y_val['location']]
+    
+    sample_weights_list = [
+        sw_detection, 
+        np.ones(len(y_train_det)), 
+        np.ones(len(y_train_det))
+    ]
+    
+    print(f"Computed Sample Weights for imbalance. Unique weights: {np.unique(sw_detection)}")
+
     callbacks = [
-        tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True, monitor='val_loss'),
-        tf.keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=5, monitor='val_loss'),
+        tf.keras.callbacks.EarlyStopping(patience=15, restore_best_weights=True, monitor='val_loss'),
+        tf.keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=7, monitor='val_loss'),
     ]
     
     history = model.fit(
-        X_train, y_train,
-        validation_data=(X_val, y_val),
+        X_train, y_train_list,
+        validation_data=(X_val, y_val_list),
         epochs=EPOCHS,
         batch_size=BATCH_SIZE,
         callbacks=callbacks,
+        sample_weight=sample_weights_list,
         verbose=1
     )
     
     # 4. Plot Learning Curves
     plot_history(history, ARTIFACTS_DIR)
+    plot_history(history, FRONTEND_PUBLIC_DIR)
 
     # 5. Evaluation and Metrics
     print("\nStep 4: Evaluating on Test Set...")
-    # model.predict returns a list [detection_probs, class_probs, location_pred]
     predictions = model.predict(X_test)
     y_pred_probs = predictions[1] # Classification head
     y_pred = np.argmax(y_pred_probs, axis=1)
@@ -134,6 +194,7 @@ def main():
 
     # 6. Confusion Matrix
     plot_confusion_matrix(y_true, y_pred, classes, ARTIFACTS_DIR)
+    plot_confusion_matrix(y_true, y_pred, classes, FRONTEND_PUBLIC_DIR)
 
     # 7. Save Artifacts
     print("\nStep 5: Saving model and artifacts...")
@@ -141,7 +202,7 @@ def main():
     joblib.dump(encoder, os.path.join(ARTIFACTS_DIR, 'encoder.joblib'))
     joblib.dump(scaler, os.path.join(ARTIFACTS_DIR, 'scaler.joblib'))
     
-    print(f"\nTraining complete! Artifacts saved in {ARTIFACTS_DIR}")
+    print(f"\nTraining complete! Artifacts saved in {ARTIFACTS_DIR} and {FRONTEND_PUBLIC_DIR}")
 
 if __name__ == "__main__":
     main()
