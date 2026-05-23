@@ -27,9 +27,18 @@ def build_fault_detection_model(input_shape: Tuple[int, int] = (200, 7), num_cla
     x = layers.Conv1D(filters=256, kernel_size=3, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
+    x = layers.Conv1D(filters=512, kernel_size=3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
     x = layers.Flatten()(x)
+    
+    # Final Ultra-Deep Shared Representation for Absolute Precision
+    x = layers.Dense(512, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.2)(x)
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
     x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.3)(x)
     
     shared_features = x
 
@@ -41,8 +50,10 @@ def build_fault_detection_model(input_shape: Tuple[int, int] = (200, 7), num_cla
     classification_output = layers.Dense(num_classes, activation='softmax', name='classification')(shared_features)
     
     # Head 3: Location (Regression - KM)
-    # Using sigmoid (0-1) then scaling by 5 to strictly bound output between 0 and 5 KM
-    location_sigmoid = layers.Dense(1, activation='sigmoid', name='location_sigmoid')(shared_features)
+    # Deeper dedicated path for location to prevent interference from classification focus
+    loc_x = layers.Dense(128, activation='relu')(shared_features)
+    loc_x = layers.Dense(64, activation='relu')(loc_x)
+    location_sigmoid = layers.Dense(1, activation='sigmoid', name='location_sigmoid')(loc_x)
     location_output = layers.Rescaling(scale=5.0, name='location')(location_sigmoid)
 
     model = models.Model(
@@ -53,7 +64,7 @@ def build_fault_detection_model(input_shape: Tuple[int, int] = (200, 7), num_cla
 
     # --- Compilation ---
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.00015),
         loss={
             'detection': 'binary_crossentropy',
             'classification': 'categorical_crossentropy',
@@ -61,8 +72,8 @@ def build_fault_detection_model(input_shape: Tuple[int, int] = (200, 7), num_cla
         },
         loss_weights={
             'detection': 1.0,
-            'classification': 1.0,
-            'location': 0.5
+            'classification': 5.0, # Extreme weight for absolute classification accuracy
+            'location': 0.5        # Lower weight to let classification reach 100% first
         },
         metrics={
             'detection': [tf.keras.metrics.BinaryAccuracy(name='accuracy')],

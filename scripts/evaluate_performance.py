@@ -93,7 +93,12 @@ def main():
     metrics_path = os.path.join(ARTIFACTS_DIR, 'metrics.json')
     with open(metrics_path, 'w') as f:
         json.dump(metrics, f)
-    print(f"Metrics saved to: {metrics_path}")
+        
+    frontend_metrics_path = os.path.join(FRONTEND_PUBLIC_DIR, 'metrics.json')
+    with open(frontend_metrics_path, 'w') as f:
+        json.dump(metrics, f)
+        
+    print(f"Metrics saved to: {metrics_path} and {frontend_metrics_path}")
     
     # 6. Confusion Matrix Visualization
     print("Generating Confusion Matrix...")
