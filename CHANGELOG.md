@@ -2,6 +2,19 @@
 
 Semua perubahan signifikan pada proyek ini akan dicatat dalam file ini.
 
+## [1.3.0] - 2026-05-28
+### Added
+- **Detailed RMSE Plotting**: Skrip pelatihan sekarang menghasilkan `location_rmse_detailed.png` dengan anotasi Test RMSE dan garis target.
+- **Training History Persistence**: Riwayat pelatihan per epoch disimpan ke `training_history.json`.
+
+### Changed
+- **Optimized Monitoring**: `EarlyStopping` dan `ReduceLROnPlateau` kini memantau `val_location_rmse` untuk menekan error lokasi secara agresif dalam batasan 50 epoch.
+- **Integrated Evaluation**: Penulisan `metrics.json` disatukan dalam skrip pelatihan untuk sinkronisasi data mutlak.
+
+### Fixed
+- Memperbaiki NameError pada skrip pelatihan akibat kesalahan manipulasi string.
+- Memperbaiki ValueError pada callback Keras dengan menentukan `mode='min'`.
+
 ## [1.2.0] - 2026-05-23
 ### Added
 - **Ultra-Deep Shared Architecture**: Menambahkan lapisan Dense (512, 256, 128) dengan Batch Normalization untuk menangani ambiguitas fitur pada gangguan kompleks (misal: ABC vs CA).
